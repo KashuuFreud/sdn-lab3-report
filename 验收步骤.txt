@@ -1,0 +1,74 @@
+【Task1验收】
+# Terminal 1
+cd ~/sdn-lab3
+source .venv/bin/activate
+python -m controllers.task1.self_learning_switch
+
+# Terminal 2
+cd ~/sdn-lab3
+sudo -E uv run topos/topo_1969_1.py
+
+# Mininet CLI
+UCLA ping UTAH -c 5
+
+# Terminal 3（验证流表）
+sudo ovs-ofctl -O OpenFlow13 dump-flows s1
+
+【Task2验收】
+sudo mn -c
+
+# Terminal 1
+python -m controllers.task2.loop_detecting_switch
+
+# Terminal 2
+sudo -E uv run topos/topo_1969_2.py
+
+# Mininet
+UCLA ping UTAH -c 5
+
+# 查看流表
+sudo ovs-ofctl -O OpenFlow13 dump-flows s1
+
+【Task3验收】
+sudo mn -c
+
+# Terminal 1
+python run_osken.py controllers/task3/shortest_forward.py --observe-links
+
+# Terminal 2
+sudo -E uv run topos/topo_1970.py
+
+# Mininet
+pingall
+# 等 5~10 秒
+SDC ping MIT -c 5
+
+# 强制使用openflow13
+sh for s in s1 s2 s3 s4 s5 s6 s7 s8 s9; do ovs-vsctl set bridge $s protocols=OpenFlow13; done
+
+# Terminal 3
+sudo ovs-ofctl -O OpenFlow13 dump-flows s1
+
+【Task4验收】
+sudo mn -c
+
+# Terminal 1
+python run_osken.py controllers/task4/fault_tolerant_forward.py --observe-links
+
+# Terminal 2
+sudo -E uv run topos/topo_1970.py
+
+# Mininet
+pingall
+
+SDC ping MIT -c 5
+
+# 模拟故障
+link s8 s9 down
+
+SDC ping MIT -c 5
+
+# 恢复
+link s8 s9 up
+
+SDC ping MIT -c 5
