@@ -1,0 +1,134 @@
+1. 本次实验中的 SDN 核心思想是什么？
+   核心思想是 Control Plane 与 Data Plane 分离，由 Controller 集中决定 forwarding policy；Control Plane：控制决策层，Data Plane：数据转发层。
+
+2. OpenFlow 在本实验中的作用是什么？
+   OpenFlow 作为 southbound interface 负责 Controller 与交换机之间的流表控制通信；Southbound Interface：控制器与交换机通信接口。
+
+3. 为什么所有交换机都必须使用 OpenFlow13？
+   因为控制器与交换机必须使用相同 OpenFlow version，否则 Flow-Mod 与 Packet-In 无法正确解析。
+
+4. table-miss flow entry 的作用是什么？
+   它用于把未匹配已有流表的数据包发送给控制器，从而触发 Packet-In。
+
+5. 如果没有 table-miss flow entry 会怎样？
+   控制器无法收到未知流量，也就无法进行 MAC learning、路径计算与流表下发。
+
+6. Packet-In 的本质作用是什么？
+   Packet-In 用于让交换机把未知数据包上传给 Controller 请求转发决策。
+
+7. Packet-Out 与 Flow-Mod 的区别是什么？
+   Packet-Out 负责转发“当前数据包”，Flow-Mod 负责安装“后续流表规则”。
+
+8. 为什么第一次 ping 往往比较慢？
+   因为第一次通信需要经历 ARP、Packet-In、路径计算与 Flow-Mod 安装。
+
+9. MAC Learning 的核心思想是什么？
+   控制器通过 `src_mac -> in_port` 学习主机位置，实现后续定向转发。
+
+10. 为什么 MAC 表要按 dpid 分别维护？
+    因为不同交换机的端口编号彼此独立，同一个 port number 在不同交换机上意义不同。
+
+11. Flood 在 Task1 中什么时候会发生？
+    当目的 MAC 尚未被学习时，交换机会通过 Flood 广播寻找目标主机。
+
+12. 为什么 Task1 中最终会减少 Flood？
+    因为控制器学习 MAC 后会下发精确 flow entry，使后续数据包直接命中流表。
+
+13. Task1 与传统交换机最大的区别是什么？
+    传统交换机的 forwarding logic 固化在硬件中，而 SDN 交换机由 Controller 软件动态控制。
+
+14. 为什么 ARP Broadcast 容易引发广播风暴？
+    因为 ARP Request 没有 TTL，广播帧在环状拓扑中会不断重复传播；TTL：Time To Live，用于限制传播次数。
+
+15. Task2 为什么不使用 STP？
+    因为 STP 会阻塞冗余链路，而 Task2 希望保留多路径并仅过滤重复广播；STP：Spanning Tree Protocol，用于消除二层环路。
+
+16. Task2 如何识别重复 ARP Broadcast？
+    通过记录 `(dpid, src_mac, dst_ip) -> in_port` 判断同一 ARP Request 是否从不同端口再次进入。
+
+17. 为什么从不同端口再次进入说明可能出现环路？
+    因为正常广播不会再次回到同一交换机，而环路 Flood 会让广播绕回来。
+
+18. `actions=[]` 为什么能够实现 Drop？
+    因为 OpenFlow 中空动作列表表示不执行任何转发动作，因此数据包会被直接丢弃。
+
+19. Task2 为什么仍然需要 MAC Learning？
+    因为 ARP 只负责地址解析，真正的数据通信仍依赖二层定向转发。
+
+20. 为什么 Task3 不能简单按 hop 数选路？
+    因为 hop count 相同的路径，其真实链路时延可能完全不同。
+
+21. Task3 中真正的边权是什么？
+    边权是链路 delay，而不是 hop count。
+
+22. Task3 为什么需要 NetworkX？
+    因为 NetworkX 提供 weighted graph 与 shortest_path 算法实现；weighted graph：带权图。
+
+23. Task3 中 topology 的本质是什么？
+    本质是由交换机、主机与链路构成的 graph structure；graph structure：图结构。
+
+24. LLDP 在实验中的作用是什么？
+    LLDP 用于 topology discovery 与 switch-to-switch delay measurement；LLDP：Link Layer Discovery Protocol。
+
+25. Echo Request 在实验中的作用是什么？
+    Echo Request 用于测量 controller-switch RTT；RTT：Round Trip Time。
+
+26. 为什么 LLDP delay 还需要减去 Echo RTT？
+    因为 LLDP delay 中包含控制器与交换机处理开销，需要通过 Echo RTT 修正真实链路时延。
+
+27. shortest_path(weight="delay") 的含义是什么？
+    表示最短路径算法按 delay 权重选择 minimum-delay path。
+
+28. 为什么 Task3 中需要 link_info？
+    因为仅有节点路径不足以指导交换机转发，还必须知道具体 out_port。
+
+29. 为什么 Task3 中要安装双向流表？
+    因为 ping 包包含 request 与 reply，双向流表可以避免反向流量再次进入控制器。
+
+30. 为什么 Task3 中要输出 estimated RTT？
+    因为路径总 delay 的双倍可近似估算端到端 RTT。
+
+31. Task4 相比 Task3 新增的核心能力是什么？
+    新增了 link failure detection 与 dynamic reroute；dynamic reroute：动态路径重计算。
+
+32. Task4 如何感知链路故障？
+    通过监听 `EventOFPPortStatus` 事件获取交换机端口状态变化。
+
+33. 为什么链路 down 后必须删除旧流表？
+    因为旧 flow entry 仍会继续命中失效路径，数据包不会重新进入控制器。
+
+34. Task4 删除流表使用的关键命令是什么？
+    使用 `OFPFC_DELETE` 删除旧 forwarding rule；forwarding rule：转发规则。
+
+35. 为什么删除旧流表后能够重新选路？
+    因为后续数据包会重新命中 table-miss 并再次触发 Packet-In。
+
+36. 为什么 Task4 要清空 topo_map 与 lldp_delay？
+    因为旧拓扑与旧 delay 数据可能已经失效。
+
+37. Task4 中 reroute 的真正触发点是什么？
+    真正触发 reroute 的是“删除旧 flow 后新的 Packet-In”。
+
+38. 为什么 Task4 更接近真实 SDN 控制器？
+    因为真实 SDN 通常都需要 topology awareness、traffic engineering 与 fault recovery；traffic engineering：流量工程。
+
+39. Task4 为什么仍然需要 ARP loop suppression？
+    因为链路变化后 ARP Broadcast 仍可能在环状拓扑中形成广播风暴。
+
+40. Task4 中最重要的验证现象是什么？
+    链路 down/up 后通信仍能恢复，同时控制器日志中出现新的 reroute path。
+
+41. 为什么说 SDN 更适合做全局优化？
+    因为 Controller 天然拥有全局 topology 与 traffic view；traffic view：全局流量视图。
+
+42. 本实验与传统分布式路由最大的区别是什么？
+    传统网络依赖 distributed protocol，而本实验采用 centralized control；distributed protocol：分布式路由协议。
+
+43. Lab2 的 ECMP 与本实验的 shortest path 有什么区别？
+    ECMP 是多路径负载均衡，而本实验是基于实时 delay 的单最优路径选择；ECMP：Equal-Cost Multi-Path。
+
+44. 为什么本实验更体现 Programmable Networking？
+    因为网络行为可以通过软件动态定义，而不是依赖固定硬件协议；Programmable Networking：网络可编程化。
+
+45. 用一句话总结整个实验。
+    整个实验通过 SDN Controller 将 MAC learning、ARP loop suppression、delay-aware routing 与 fault-tolerant reroute 统一整合，实现了集中式、可编程、具备动态恢复能力的智能网络控制系统。
